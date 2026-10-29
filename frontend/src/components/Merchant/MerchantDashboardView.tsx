@@ -10,6 +10,7 @@ import {
   Layers,
   HelpCircle,
   Info,
+  Sparkles,
 } from "lucide-react";
 import {
   fetchMerchantAnalytics,
@@ -30,6 +31,18 @@ export const MerchantDashboardView: React.FC = () => {
   const [brandFilter, setBrandFilter] = useState<string>("");
   const [productFilter, setProductFilter] = useState<string>("");
   const [selectedCell, setSelectedCell] = useState<MatrixCell | null>(null);
+
+  // Assortment Restock Simulator State
+  const [simulatedSegments, setSimulatedSegments] = useState<string[]>([]);
+
+  const simulatedCoverageScore = data
+    ? Math.min(
+        100,
+        Math.round(
+          (data.coverage_score + simulatedSegments.length * 5.0) * 10
+        ) / 10
+      )
+    : 0;
 
   const loadAnalytics = async () => {
     setLoading(true);
@@ -212,13 +225,34 @@ export const MerchantDashboardView: React.FC = () => {
             <div className="bg-white p-6 rounded-2xl border border-[#EFE8DC] shadow-sm">
               <div className="flex items-center justify-between text-xs font-semibold text-[#8C827A] uppercase tracking-wider">
                 <span>Coverage Index</span>
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                {simulatedSegments.length > 0 ? (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-[10px]">
+                    Simulated
+                  </span>
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                )}
               </div>
               <div className="text-3xl font-serif font-bold text-[#23201E] mt-3">
-                {data.coverage_score}%
+                {simulatedSegments.length > 0 ? (
+                  <span className="text-emerald-700">
+                    {simulatedCoverageScore}%
+                    <span className="text-xs font-sans text-emerald-600 ml-1.5 font-normal">
+                      (+{(simulatedSegments.length * 5.0).toFixed(1)}%)
+                    </span>
+                  </span>
+                ) : (
+                  `${data.coverage_score}%`
+                )}
               </div>
               <div className="text-xs text-[#59524B] mt-2">
-                Percentage of 20 matrix segments with $\ge 1$ in-stock SKU
+                {simulatedSegments.length > 0 ? (
+                  <span className="text-emerald-700 font-medium">
+                    Simulating restock of {simulatedSegments.length} assortment segment{simulatedSegments.length > 1 ? "s" : ""}
+                  </span>
+                ) : (
+                  "Percentage of 20 matrix segments with ≥ 1 in-stock SKU"
+                )}
               </div>
             </div>
 
@@ -319,8 +353,13 @@ export const MerchantDashboardView: React.FC = () => {
                             );
                           }
 
+                          const cellKey = `${depth}-${undertone}`;
+                          const isSimulated = simulatedSegments.includes(cellKey);
+
                           let statusClasses = "bg-emerald-50 border-emerald-200 text-emerald-900";
-                          if (cell.status === "critical_gap") {
+                          if (isSimulated) {
+                            statusClasses = "bg-emerald-100 border-emerald-400 text-emerald-950 ring-1 ring-emerald-500 shadow-xs";
+                          } else if (cell.status === "critical_gap") {
                             statusClasses = "bg-rose-50 border-rose-200 text-rose-900";
                           } else if (cell.status === "vulnerable") {
                             statusClasses = "bg-amber-50 border-amber-200 text-amber-900";
@@ -336,9 +375,13 @@ export const MerchantDashboardView: React.FC = () => {
                                     : "hover:shadow-sm"
                                 }`}
                               >
-                                <div className="text-sm">{cell.total_shades}</div>
+                                <div className="text-sm">
+                                  {isSimulated ? cell.total_shades + 2 : cell.total_shades}
+                                </div>
                                 <div className="text-[10px] font-normal opacity-80 mt-0.5">
-                                  {cell.total_shades === 0
+                                  {isSimulated
+                                    ? "+2 Simulated"
+                                    : cell.total_shades === 0
                                     ? "Empty"
                                     : `${cell.in_stock_shades} in stock`}
                                 </div>
@@ -427,6 +470,33 @@ export const MerchantDashboardView: React.FC = () => {
                           No catalogue shades formulated in this segment. Immediate assortment priority.
                         </div>
                       )}
+                    </div>
+
+                    {/* Interactive Assortment Simulator Toggle */}
+                    <div className="pt-3 border-t border-[#EFE8DC]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const key = `${selectedCell.depth_group}-${selectedCell.undertone}`;
+                          if (simulatedSegments.includes(key)) {
+                            setSimulatedSegments(simulatedSegments.filter((k) => k !== key));
+                          } else {
+                            setSimulatedSegments([...simulatedSegments, key]);
+                          }
+                        }}
+                        className={`w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                          simulatedSegments.includes(`${selectedCell.depth_group}-${selectedCell.undertone}`)
+                            ? "bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+                            : "bg-[#23201E] text-white hover:bg-[#383330]"
+                        }`}
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-[#C5A880]" />
+                        <span>
+                          {simulatedSegments.includes(`${selectedCell.depth_group}-${selectedCell.undertone}`)
+                            ? "Reset Segment Simulation"
+                            : "Simulate Sourcing +2 SKUs"}
+                        </span>
+                      </button>
                     </div>
                   </div>
                 ) : (

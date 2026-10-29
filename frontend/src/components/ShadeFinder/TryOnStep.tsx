@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Camera,
   Sparkles,
@@ -7,7 +7,7 @@ import {
   Sliders,
   CheckCircle2,
   Layers,
-  Check
+  Check,
 } from "lucide-react";
 import type { MatchCandidate, NormalizedVtoResult } from "../../services/api";
 
@@ -17,7 +17,11 @@ interface TryOnStepProps {
   candidates: MatchCandidate[];
   vtoResult: NormalizedVtoResult;
   onSwitchCandidate: (shade: MatchCandidate) => void;
-  onReRenderWithSettings: (colorIntensity: number, coverageIntensity: number, glowIntensity: number) => void;
+  onReRenderWithSettings: (
+    colorIntensity: number,
+    coverageIntensity: number,
+    glowIntensity: number
+  ) => void;
   onRestart: () => void;
   isLoadingVto: boolean;
 }
@@ -32,7 +36,7 @@ export const TryOnStep: React.FC<TryOnStepProps> = ({
   onRestart,
   isLoadingVto,
 }) => {
-  // View mode: 'side-by-side' or 'split-slider'
+  // View mode: 'side-by-side' or 'single' (split view)
   const [viewMode, setViewMode] = useState<"side-by-side" | "single">("side-by-side");
   const [sliderPosition, setSliderPosition] = useState<number>(50);
   const [cartSuccess, setCartSuccess] = useState<boolean>(false);
@@ -41,6 +45,21 @@ export const TryOnStep: React.FC<TryOnStepProps> = ({
   const [coverageIntensity, setCoverageIntensity] = useState<number>(50);
   const [glowIntensity, setGlowIntensity] = useState<number>(10);
   const [colorIntensity, setColorIntensity] = useState<number>(50);
+
+  // Ref to track split slider container width for undistorted clipping
+  const splitContainerRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(400);
+
+  useEffect(() => {
+    const updateWidth = () => {
+      if (splitContainerRef.current) {
+        setContainerWidth(splitContainerRef.current.clientWidth);
+      }
+    };
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, [viewMode]);
 
   const handleApplySettings = () => {
     onReRenderWithSettings(colorIntensity, coverageIntensity, glowIntensity);
@@ -52,7 +71,7 @@ export const TryOnStep: React.FC<TryOnStepProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10">
+    <div className="max-w-4xl mx-auto space-y-10 animate-fadeIn">
       {/* Header */}
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F7F3EC] border border-[#E8E2D9] text-xs font-semibold text-[#8C827A] uppercase tracking-wider">
@@ -201,6 +220,15 @@ export const TryOnStep: React.FC<TryOnStepProps> = ({
                   alt="YouCam VTO Render"
                   className="w-full h-full object-cover"
                 />
+                {/* Real-time optical tone overlay when adjusting intensity sliders */}
+                <div
+                  className="absolute inset-0 pointer-events-none transition-opacity duration-150"
+                  style={{
+                    backgroundColor: activeShade.hex_color,
+                    opacity: (coverageIntensity / 100) * 0.12,
+                    mixBlendMode: "multiply",
+                  }}
+                />
                 <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-[#23201E] text-[#C5A880] text-[11px] font-bold flex items-center gap-1 shadow-sm">
                   <Sparkles className="w-3 h-3 text-[#C5A880]" />
                   <span>{activeShade.shade_name}</span>
@@ -215,16 +243,28 @@ export const TryOnStep: React.FC<TryOnStepProps> = ({
             </div>
           </div>
         ) : (
-          /* Interactive Split View */
+          /* Interactive Split View with Undistorted Width Mapping */
           <div className="space-y-4 max-w-lg mx-auto">
-            <div className="relative aspect-4/5 rounded-2xl overflow-hidden shadow-md border-2 border-[#23201E]">
-              {/* Rendered image as background */}
+            <div
+              ref={splitContainerRef}
+              className="relative aspect-4/5 rounded-2xl overflow-hidden shadow-md border-2 border-[#23201E] select-none"
+            >
+              {/* Rendered image as full background */}
               <img
                 src={vtoResult.result_image_url}
                 alt="Rendered Shade"
                 className="w-full h-full object-cover absolute inset-0"
               />
-              {/* Original image clipped on the left */}
+              <div
+                className="absolute inset-0 pointer-events-none transition-opacity duration-150"
+                style={{
+                  backgroundColor: activeShade.hex_color,
+                  opacity: (coverageIntensity / 100) * 0.12,
+                  mixBlendMode: "multiply",
+                }}
+              />
+
+              {/* Original image clipped on the left without horizontal compression */}
               <div
                 className="absolute inset-0 overflow-hidden"
                 style={{ width: `${sliderPosition}%` }}
@@ -232,14 +272,14 @@ export const TryOnStep: React.FC<TryOnStepProps> = ({
                 <img
                   src={originalPhotoUrl}
                   alt="Original"
-                  className="w-full h-full object-cover max-w-none"
-                  style={{ width: "100%", height: "100%" }}
+                  className="h-full object-cover max-w-none absolute top-0 left-0"
+                  style={{ width: `${containerWidth}px` }}
                 />
               </div>
 
-              {/* Split Line */}
+              {/* Split Divider Line */}
               <div
-                className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg pointer-events-none"
+                className="absolute top-0 bottom-0 w-0.5 bg-white shadow-xl pointer-events-none"
                 style={{ left: `${sliderPosition}%` }}
               />
 
@@ -258,11 +298,11 @@ export const TryOnStep: React.FC<TryOnStepProps> = ({
                 max="100"
                 value={sliderPosition}
                 onChange={(e) => setSliderPosition(Number(e.target.value))}
-                className="w-full accent-[#23201E]"
+                className="w-full accent-[#23201E] cursor-ew-resize"
               />
               <div className="flex justify-between text-[11px] text-[#8C827A]">
                 <span>← Original Skin</span>
-                <span>Drag to Compare</span>
+                <span className="font-medium text-[#23201E]">Drag Slider to Compare Split</span>
                 <span>Applied Foundation →</span>
               </div>
             </div>

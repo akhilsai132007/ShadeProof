@@ -284,3 +284,33 @@ def test_api_virtual_try_on_validates_hex(client):
     }
     response = client.post("/api/v1/virtual-try-on", json=invalid_payload)
     assert response.status_code == 422  # Pydantic validation error
+
+
+def test_api_analyze_skin_sandbox_fair_and_deep_fixtures(client):
+    """Verify demographic-adaptive fixtures for Fair Cool and Deep Warm."""
+    # Test Fair Cool portrait fixture
+    fair_image = io.BytesIO(b"fake_fair_cool_portrait")
+    res_fair = client.post(
+        "/api/v1/analyze-skin",
+        files={"file": ("fair-cool.jpg", fair_image, "image/jpeg")},
+        data={"force_sandbox": "true"},
+    )
+    assert res_fair.status_code == 200
+    data_fair = res_fair.json()
+    assert data_fair["skin_tone_level"] == "Fair"
+    assert data_fair["undertone"] == "Cool"
+    assert data_fair["hex_color"] == "#F4D7C7"
+
+    # Test Deep Warm portrait fixture
+    deep_image = io.BytesIO(b"fake_deep_warm_portrait")
+    res_deep = client.post(
+        "/api/v1/analyze-skin",
+        files={"file": ("deep-warm.jpg", deep_image, "image/jpeg")},
+        data={"force_sandbox": "true"},
+    )
+    assert res_deep.status_code == 200
+    data_deep = res_deep.json()
+    assert data_deep["skin_tone_level"] == "Deep"
+    assert data_deep["undertone"] == "Warm"
+    assert data_deep["hex_color"] == "#5C3826"
+

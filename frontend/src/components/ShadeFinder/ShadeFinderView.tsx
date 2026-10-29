@@ -84,7 +84,6 @@ export const ShadeFinderView: React.FC = () => {
     setSelectedShade(shade);
     setIsLoadingVto(true);
     setErrorMessage(null);
-    setCurrentStep("tryon");
 
     try {
       const vto = await requestVirtualTryOn({
@@ -98,8 +97,12 @@ export const ShadeFinderView: React.FC = () => {
       });
 
       setVtoResult(vto);
+      // Only transition to try-on step once the asset is ready
+      setCurrentStep("tryon");
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to render virtual try-on.");
+      setErrorMessage(
+        err.message || "Failed to render virtual try-on with YouCam API. Please try again."
+      );
     } finally {
       setIsLoadingVto(false);
     }
@@ -178,6 +181,8 @@ export const ShadeFinderView: React.FC = () => {
           report={matchReport}
           onSelectShadeForTryOn={handleSelectShadeForTryOn}
           onBackToAnalysis={() => setCurrentStep("analysis")}
+          isLoadingVto={isLoadingVto}
+          selectedShadeCode={selectedShade?.shade_code}
         />
       )}
 

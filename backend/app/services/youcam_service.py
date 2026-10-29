@@ -229,35 +229,97 @@ class YouCamService:
     # -------------------------------------------------------------------------
 
     def _get_sandbox_skin_analysis(self, filename: str) -> NormalizedSkinAnalysis:
-        """Returns realistic, verified YouCam S2S v2.0 skin tone analysis fixture."""
-        raw_fixture = {
-            "skin_tone": {
-                "level": "medium",
-                "undertone": "warm",
-                "hex": "#D8A47F",
-                "cie_lab": {
-                    "l": 70.82,
-                    "a": 14.18,
-                    "b": 26.56,
+        """
+        Returns realistic, verified YouCam S2S v2.0 skin tone analysis fixture.
+        Adapts coordinates to match the selected evaluation portrait fixture if applicable.
+        """
+        fname_lower = filename.lower()
+
+        if "fair" in fname_lower:
+            # Calibrated Fair Cool fixture
+            raw_fixture = {
+                "skin_tone": {
+                    "level": "fair",
+                    "undertone": "cool",
+                    "hex": "#F4D7C7",
+                    "cie_lab": {
+                        "l": 86.50,
+                        "a": 9.20,
+                        "b": 13.50,
+                    },
                 },
-            },
-            "facial_colors": {
-                "skin": {"hex": "#D8A47F"},
-                "lips": {"hex": "#BC5D58"},
-                "eyes": {"hex": "#4A3B32"},
-                "eyebrows": {"hex": "#3A2E2B"},
-                "hair": {"hex": "#2B211D"},
-            },
-            "metadata": {
-                "face_detected": True,
-                "confidence": 0.98,
-                "face_angle": {"yaw": 0.5, "pitch": 1.2, "roll": -0.2},
-            },
-        }
+                "facial_colors": {
+                    "skin": {"hex": "#F4D7C7"},
+                    "lips": {"hex": "#CF6D78"},
+                    "eyes": {"hex": "#425260"},
+                    "eyebrows": {"hex": "#5C4638"},
+                    "hair": {"hex": "#785640"},
+                },
+                "metadata": {
+                    "face_detected": True,
+                    "confidence": 0.99,
+                    "face_angle": {"yaw": 0.2, "pitch": 0.8, "roll": 0.1},
+                },
+            }
+            src_id = "sandbox_file_id_fair_cool_selfie"
+        elif "deep" in fname_lower:
+            # Calibrated Deep Warm fixture
+            raw_fixture = {
+                "skin_tone": {
+                    "level": "deep",
+                    "undertone": "warm",
+                    "hex": "#5C3826",
+                    "cie_lab": {
+                        "l": 31.80,
+                        "a": 14.60,
+                        "b": 18.20,
+                    },
+                },
+                "facial_colors": {
+                    "skin": {"hex": "#5C3826"},
+                    "lips": {"hex": "#7B3B38"},
+                    "eyes": {"hex": "#221814"},
+                    "eyebrows": {"hex": "#1C1411"},
+                    "hair": {"hex": "#140E0C"},
+                },
+                "metadata": {
+                    "face_detected": True,
+                    "confidence": 0.98,
+                    "face_angle": {"yaw": -0.4, "pitch": 1.1, "roll": -0.1},
+                },
+            }
+            src_id = "sandbox_file_id_deep_warm_selfie"
+        else:
+            # Calibrated Medium Warm fixture
+            raw_fixture = {
+                "skin_tone": {
+                    "level": "medium",
+                    "undertone": "warm",
+                    "hex": "#D8A47F",
+                    "cie_lab": {
+                        "l": 70.82,
+                        "a": 14.18,
+                        "b": 26.56,
+                    },
+                },
+                "facial_colors": {
+                    "skin": {"hex": "#D8A47F"},
+                    "lips": {"hex": "#BC5D58"},
+                    "eyes": {"hex": "#4A3B32"},
+                    "eyebrows": {"hex": "#3A2E2B"},
+                    "hair": {"hex": "#2B211D"},
+                },
+                "metadata": {
+                    "face_detected": True,
+                    "confidence": 0.98,
+                    "face_angle": {"yaw": 0.5, "pitch": 1.2, "roll": -0.2},
+                },
+            }
+            src_id = "sandbox_file_id_medium_warm_selfie"
 
         return self.normalize_skin_analysis(
             raw_fixture,
-            src_file_id="sandbox_file_id_medium_warm_selfie",
+            src_file_id=src_id,
             is_sandbox=True,
         )
 
@@ -269,11 +331,16 @@ class YouCamService:
     ) -> NormalizedVtoResult:
         """Returns realistic, verified YouCam S2S v2.0 virtual try-on render fixture."""
         clean_hex = hex_color.lstrip("#").upper()
-        # High quality beauty portrait fixture showing simulated foundation application
-        sample_render_url = (
-            f"https://images.unsplash.com/photo-1544005313-94ddf0286df2"
-            f"?auto=format&fit=crop&w=768&q=80&shade={clean_hex}"
-        )
+        
+        # Select base portrait matching the intake subject
+        if "fair_cool" in src_file_id:
+            base_url = "https://images.unsplash.com/photo-1517841905240-472988babdf9"
+        elif "deep_warm" in src_file_id:
+            base_url = "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04"
+        else:
+            base_url = "https://images.unsplash.com/photo-1534528741775-53994a69daeb"
+
+        sample_render_url = f"{base_url}?auto=format&fit=crop&w=768&q=80&vto_shade={clean_hex}"
 
         return NormalizedVtoResult(
             task_id=f"sandbox_task_vto_{shade_code.lower()}_{clean_hex}",
