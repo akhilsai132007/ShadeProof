@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { IntakeStep } from "./IntakeStep";
 import { AnalysisResultsStep } from "./AnalysisResultsStep";
 import { MatchesStep } from "./MatchesStep";
@@ -7,10 +7,12 @@ import {
   analyzeSkin,
   matchShades,
   requestVirtualTryOn,
+  fetchCatalogueFilterOptions,
   type NormalizedSkinAnalysis,
   type ShadeMatchReport,
   type MatchCandidate,
   type NormalizedVtoResult,
+  type CatalogueFilterOptions,
 } from "../../services/api";
 
 type FlowStep = "intake" | "analysis" | "matches" | "tryon";
@@ -25,11 +27,34 @@ export const ShadeFinderView: React.FC = () => {
   const [selectedShade, setSelectedShade] = useState<MatchCandidate | null>(null);
   const [vtoResult, setVtoResult] = useState<NormalizedVtoResult | null>(null);
 
+  // Dynamic Catalogue Filter State
+  const [filterOptions, setFilterOptions] = useState<CatalogueFilterOptions | null>(null);
+  const [selectedBrand, setSelectedBrand] = useState<string>("All");
+  const [selectedFinish, setSelectedFinish] = useState<string>("All");
+
   // Loading States
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [isLoadingMatches, setIsLoadingMatches] = useState<boolean>(false);
   const [isLoadingVto, setIsLoadingVto] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Load available catalogue filter options on mount
+  useEffect(() => {
+    loadFilters();
+  }, []);
+
+  const loadFilters = async () => {
+    try {
+      const opts = await fetchCatalogueFilterOptions();
+      setFilterOptions(opts);
+    } catch {
+      // Fallback defaults if endpoint unreachable
+      setFilterOptions({
+        brands: ["All", "Lumière Beauty (Demo)", "Velvet Radiance (Demo)"],
+        finishes: ["All", "Natural Satin", "Soft Matte", "Radiant Dewy"],
+      });
+    }
+  };
 
   // 1. Handle Selfie Analysis
   const handleAnalyze = async (file: File, previewUrl: string, isDemoPortrait: boolean) => {
@@ -38,7 +63,6 @@ export const ShadeFinderView: React.FC = () => {
     setUserPhotoUrl(previewUrl);
 
     try {
-      // If user selected a preset demo portrait or has unconfigured credentials, pass forceSandbox
       const analysis = await analyzeSkin(file, isDemoPortrait);
       setAnalysisResult(analysis);
       setCurrentStep("analysis");
@@ -49,11 +73,13 @@ export const ShadeFinderView: React.FC = () => {
     }
   };
 
-  // 2. Fetch Matches from CIEDE2000 Matching Engine
-  const handleProceedToMatches = async () => {
+  // 2. Fetch Matches from CIEDE2000 Matching Engine with Brand & Finish Filters
+  const fetchMatches = async (brand: string, finish: string) => {
     if (!analysisResult) return;
     setIsLoadingMatches(true);
     setErrorMessage(null);
+    setSelectedBrand(brand);
+    setSelectedFinish(finish);
 
     try {
       const skinLab: [number, number, number] = [
@@ -66,7 +92,9 @@ export const ShadeFinderView: React.FC = () => {
         analysisResult.hex_color,
         skinLab,
         analysisResult.undertone,
-        3
+        3,
+        brand,
+        finish
       );
 
       setMatchReport(report);
@@ -76,6 +104,14 @@ export const ShadeFinderView: React.FC = () => {
     } finally {
       setIsLoadingMatches(false);
     }
+  };
+
+  const handleProceedToMatches = () => {
+    fetchMatches(selectedBrand, selectedFinish);
+  };
+
+  const handleFilterChange = (newBrand: string, newFinish: string) => {
+    fetchMatches(newBrand, newFinish);
   };
 
   // 3. Trigger YouCam Virtual Try-On for Selected Candidate
@@ -144,6 +180,8 @@ export const ShadeFinderView: React.FC = () => {
     setSelectedShade(null);
     setVtoResult(null);
     setErrorMessage(null);
+    setSelectedBrand("All");
+    setSelectedFinish("All");
   };
 
   return (
@@ -173,6 +211,11 @@ export const ShadeFinderView: React.FC = () => {
           onProceedToMatches={handleProceedToMatches}
           onRetake={handleRestart}
           isLoadingMatches={isLoadingMatches}
+          filterOptions={filterOptions}
+          selectedBrand={selectedBrand}
+          selectedFinish={selectedFinish}
+          onBrandChange={setSelectedBrand}
+          onFinishChange={setSelectedFinish}
         />
       )}
 
@@ -181,8 +224,11 @@ export const ShadeFinderView: React.FC = () => {
           report={matchReport}
           onSelectShadeForTryOn={handleSelectShadeForTryOn}
           onBackToAnalysis={() => setCurrentStep("analysis")}
+          onFilterChange={handleFilterChange}
           isLoadingVto={isLoadingVto}
           selectedShadeCode={selectedShade?.shade_code}
+          selectedBrand={selectedBrand}
+          selectedFinish={selectedFinish}
         />
       )}
 

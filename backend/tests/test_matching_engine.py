@@ -143,6 +143,7 @@ def sample_catalogue():
             hex_color="#F6E6DB",
             undertone="Cool",
             depth_group="Fair",
+            finish="Radiant Satin",
             stock_status="in_stock",
         ),
         CandidateShade(
@@ -153,6 +154,7 @@ def sample_catalogue():
             hex_color="#EACDB6",
             undertone="Neutral",
             depth_group="Light",
+            finish="Natural Matte",
             stock_status="in_stock",
         ),
         CandidateShade(
@@ -163,6 +165,7 @@ def sample_catalogue():
             hex_color="#D8A47F",
             undertone="Warm",
             depth_group="Medium",
+            finish="Radiant Satin",
             stock_status="in_stock",
         ),
         CandidateShade(
@@ -173,6 +176,7 @@ def sample_catalogue():
             hex_color="#CDB28D",
             undertone="Olive",
             depth_group="Medium",
+            finish="Natural Matte",
             stock_status="in_stock",
         ),
         CandidateShade(
@@ -183,7 +187,19 @@ def sample_catalogue():
             hex_color="#4B2F21",
             undertone="Warm",
             depth_group="Deep",
+            finish="Soft Matte",
             stock_status="out_of_stock",
+        ),
+        CandidateShade(
+            shade_code="SH-B1",
+            shade_name="Amber Glow",
+            brand="Brand B",
+            product_name="Foundation Y",
+            hex_color="#D8A47F",
+            undertone="Warm",
+            depth_group="Medium",
+            finish="Dewy Luminous",
+            stock_status="in_stock",
         ),
     ]
 
@@ -318,3 +334,115 @@ def test_api_match_shades_endpoint(client):
     assert "scoring_formula_metadata" in data
     assert "CIEDE2000" in data["scoring_formula_metadata"]["formula"]
     assert "not a statistical probability" in data["scoring_formula_metadata"]["score_interpretation"]
+
+
+# -----------------------------------------------------------------------------
+# 6. Brand & Finish Filter Tests (Phase 7 Enhancements)
+# -----------------------------------------------------------------------------
+
+def test_matching_engine_brand_filtering(sample_catalogue):
+    """Verify that specifying brand_filter restricts candidates to that brand only."""
+    engine = FoundationMatchingEngine()
+    report = engine.match(
+        skin_hex="#D8A47F",
+        skin_undertone="Warm",
+        catalogue=sample_catalogue,
+        brand_filter="Brand B",
+        top_n=3,
+    )
+    assert len(report.candidates) == 1
+    assert report.candidates[0].brand == "Brand B"
+    assert report.candidates[0].shade_code == "SH-B1"
+    assert report.applied_filters["brand"] == "Brand B"
+    assert "Brand B" in report.available_filters["brands"]
+
+
+def test_matching_engine_finish_filtering(sample_catalogue):
+    """Verify that specifying finish_filter restricts candidates to matching finish."""
+    engine = FoundationMatchingEngine()
+    report = engine.match(
+        skin_hex="#D8A47F",
+        skin_undertone="Warm",
+        catalogue=sample_catalogue,
+        finish_filter="Radiant",
+        top_n=3,
+    )
+    # SH-100 and SH-320 have "Radiant Satin"
+    assert len(report.candidates) == 2
+    for c in report.candidates:
+        assert "Radiant" in c.finish
+    assert report.applied_filters["finish"] == "Radiant"
+
+
+def test_matching_engine_combined_filtering(sample_catalogue):
+    """Verify combining both brand and finish filters."""
+    engine = FoundationMatchingEngine()
+    report = engine.match(
+        skin_hex="#D8A47F",
+        skin_undertone="Warm",
+        catalogue=sample_catalogue,
+        brand_filter="Brand A",
+        finish_filter="Matte",
+        top_n=3,
+    )
+    assert len(report.candidates) >= 1
+    for c in report.candidates:
+        assert c.brand == "Brand A"
+        assert "Matte" in c.finish
+
+
+def test_matching_engine_filter_empty_results(sample_catalogue):
+    """Verify empty state handling when no candidates match the filter combination."""
+    engine = FoundationMatchingEngine()
+    report = engine.match(
+        skin_hex="#D8A47F",
+        skin_undertone="Warm",
+        catalogue=sample_catalogue,
+        brand_filter="Brand B",
+        finish_filter="Matte",  # Brand B only has "Dewy Luminous"
+        top_n=3,
+    )
+    assert len(report.candidates) == 0
+    assert report.total_shades_evaluated == 0
+    assert report.scoring_formula_metadata["status"] == "empty_filtered_results"
+    assert "Brand B" in report.scoring_formula_metadata["message"]
+    # Available filters should still be returned so user can reset or choose another
+    assert len(report.available_filters["brands"]) > 1
+    assert len(report.available_filters["finishes"]) > 1
+
+
+def test_api_match_shades_with_brand_and_finish_filters(client):
+    """Verify POST /api/v1/match-shades with brand and finish payloads."""
+    payload = {
+        "skin_hex": "#D8A47F",
+        "skin_undertone": "Warm",
+        "brand": "Velvet Radiance",
+        "finish": "Radiant",
+        "top_n": 3,
+    }
+    response = client.post("/api/v1/match-shades", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "candidates" in data
+    assert "applied_filters" in data
+    assert data["applied_filters"]["brand"] == "Velvet Radiance"
+    assert data["applied_filters"]["finish"] == "Radiant"
+    assert "available_filters" in data
+    assert "All" in data["available_filters"]["brands"]
+
+    for c in data["candidates"]:
+        assert "Velvet Radiance" in c["brand"]
+
+
+def test_api_catalogue_filter_options(client):
+    """Verify GET /api/v1/catalogue/filter-options returns dynamic brands and finishes."""
+    response = client.get("/api/v1/catalogue/filter-options")
+    assert response.status_code == 200
+    data = response.json()
+    assert "brands" in data
+    assert "finishes" in data
+    assert "All" in data["brands"]
+    assert "All" in data["finishes"]
+    assert len(data["brands"]) >= 2
+    assert len(data["finishes"]) >= 2
+

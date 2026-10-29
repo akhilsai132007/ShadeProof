@@ -42,6 +42,8 @@ class MatchShadesRequest(BaseModel):
     skin_hex: Optional[str] = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$", description="Skin HEX color code (#RRGGBB)")
     skin_lab: Optional[List[float]] = Field(None, description="Optional CIELAB [L*, a*, b*] coordinates")
     skin_undertone: Optional[str] = Field(None, description="Analyzed skin undertone (Warm, Cool, Neutral, Olive)")
+    brand: Optional[str] = Field(None, description="Optional brand constraint ('All' for no filter)")
+    finish: Optional[str] = Field(None, description="Optional finish constraint ('All' for no filter)")
     top_n: int = Field(3, ge=1, le=10, description="Number of top candidates to rank (default 3)")
 
 
@@ -182,6 +184,8 @@ def match_shades(body: MatchShadesRequest, db: Session = Depends(get_db)):
             hex_color=s.hex_color,
             undertone=s.undertone,
             depth_group=s.depth_group,
+            finish=s.finish,
+            coverage=s.coverage,
             lab_l=s.lab_l,
             lab_a=s.lab_a,
             lab_b=s.lab_b,
@@ -204,6 +208,8 @@ def match_shades(body: MatchShadesRequest, db: Session = Depends(get_db)):
             skin_hex=body.skin_hex,
             skin_undertone=body.skin_undertone,
             catalogue=candidates,
+            brand_filter=body.brand,
+            finish_filter=body.finish,
             top_n=body.top_n,
         )
         return report
@@ -219,6 +225,19 @@ def match_shades(body: MatchShadesRequest, db: Session = Depends(get_db)):
 # -----------------------------------------------------------------------------
 # Catalogue Shade Endpoints
 # -----------------------------------------------------------------------------
+
+@api_router.get("/catalogue/filter-options", tags=["Shades"])
+def get_catalogue_filter_options(db: Session = Depends(get_db)):
+    """
+    Returns dynamically derived brand and finish filter options from the database catalogue.
+    Includes 'All' as the default baseline.
+    """
+    brands = [r[0] for r in db.query(FoundationShade.brand).distinct().order_by(FoundationShade.brand).all()]
+    finishes = [r[0] for r in db.query(FoundationShade.finish).distinct().order_by(FoundationShade.finish).all()]
+    return {
+        "brands": ["All"] + brands,
+        "finishes": ["All"] + finishes,
+    }
 
 @api_router.get("/shades", response_model=List[FoundationShadeResponse], tags=["Shades"])
 def list_shades(

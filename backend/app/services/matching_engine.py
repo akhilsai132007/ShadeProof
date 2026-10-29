@@ -63,6 +63,8 @@ class CandidateShade:
     hex_color: str
     undertone: str
     depth_group: str
+    finish: str = "Natural Matte"
+    coverage: str = "Medium-Full"
     lab_l: Optional[float] = None
     lab_a: Optional[float] = None
     lab_b: Optional[float] = None
@@ -85,9 +87,13 @@ class MatchResult:
     match_score: float                  # Calibrated compatibility percentage [50.0, 99.0]
     undertone: str
     depth_group: str
-    stock_status: str
-    match_tier: str                     # "Exact Match", "Close Match", "Wearable Alternative"
-    ranking_explanation: str
+    finish: str = "Natural Matte"
+    coverage: str = "Medium-Full"
+    stock_status: str = "in_stock"
+    match_tier: str = "Close Match"     # "Exact Match", "Close Match", "Wearable Alternative"
+    ranking_explanation: str = ""
+    price: float = 39.0
+    currency: str = "USD"
     product_url: Optional[str] = None
     delta_e_description: str = ""
 
@@ -97,6 +103,8 @@ class ShadeMatchReport:
     user_skin: Dict[str, Any]
     candidates: List[MatchResult]
     total_shades_evaluated: int
+    applied_filters: Dict[str, str] = field(default_factory=dict)
+    available_filters: Dict[str, List[str]] = field(default_factory=dict)
     scoring_formula_metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -358,6 +366,8 @@ class FoundationMatchingEngine:
         skin_hex: Optional[str] = None,
         skin_undertone: Optional[str] = None,
         catalogue: Optional[List[CandidateShade]] = None,
+        brand_filter: Optional[str] = None,
+        finish_filter: Optional[str] = None,
         top_n: int = 3,
     ) -> ShadeMatchReport:
         """
@@ -368,6 +378,8 @@ class FoundationMatchingEngine:
           skin_hex: Fallback hex string (#RRGGBB) if Lab is not directly provided.
           skin_undertone: "Warm", "Cool", "Neutral", "Olive" (or None).
           catalogue: List of CandidateShade objects to evaluate.
+          brand_filter: Optional brand constraint (e.g. 'Lumière Beauty' or 'All').
+          finish_filter: Optional finish constraint (e.g. 'Soft Matte' or 'All').
           top_n: Number of candidate shades to return (default: 3).
 
         Returns:
@@ -385,22 +397,67 @@ class FoundationMatchingEngine:
             "undertone": skin_undertone.capitalize() if skin_undertone else None,
         }
 
+        # Collect dynamic available filters from the catalogue
+        raw_catalogue = catalogue or []
+        unique_brands = sorted(list({s.brand for s in raw_catalogue if s.brand}))
+        unique_finishes = sorted(list({s.finish for s in raw_catalogue if s.finish}))
+        available_filters = {
+            "brands": ["All"] + unique_brands,
+            "finishes": ["All"] + unique_finishes,
+        }
+
+        active_brand = (brand_filter or "All").strip()
+        active_finish = (finish_filter or "All").strip()
+        applied_filters = {
+            "brand": active_brand,
+            "finish": active_finish,
+        }
+
         # 2. Check for empty catalogue
-        if not catalogue:
+        if not raw_catalogue:
             return ShadeMatchReport(
                 user_skin=user_skin_info,
                 candidates=[],
                 total_shades_evaluated=0,
+                applied_filters=applied_filters,
+                available_filters=available_filters,
                 scoring_formula_metadata={
                     "status": "empty_catalogue",
                     "message": "No candidate shades available in the catalogue.",
                 },
             )
 
-        # 3. Evaluate each candidate shade
+        # 3. Apply Brand and Finish filters before ranking
+        filtered_catalogue = raw_catalogue
+        if active_brand.lower() != "all":
+            filtered_catalogue = [
+                s for s in filtered_catalogue
+                if active_brand.lower() in s.brand.lower()
+            ]
+
+        if active_finish.lower() != "all":
+            filtered_catalogue = [
+                s for s in filtered_catalogue
+                if active_finish.lower() in s.finish.lower()
+            ]
+
+        if not filtered_catalogue:
+            return ShadeMatchReport(
+                user_skin=user_skin_info,
+                candidates=[],
+                total_shades_evaluated=0,
+                applied_filters=applied_filters,
+                available_filters=available_filters,
+                scoring_formula_metadata={
+                    "status": "empty_filtered_results",
+                    "message": f"No candidate shades match brand '{active_brand}' and finish '{active_finish}'.",
+                },
+            )
+
+        # 4. Evaluate each candidate shade in the filtered catalogue
         evaluated_candidates = []
 
-        for shade in catalogue:
+        for shade in filtered_catalogue:
             # Resolve shade Lab coordinates
             try:
                 s_l, s_a, s_b = self._resolve_shade_lab(shade)
@@ -444,10 +501,10 @@ class FoundationMatchingEngine:
                 "match_tier": match_tier,
             })
 
-        # 4. Sort by ranking distance (lowest distance = closest match)
+        # 5. Sort by ranking distance (lowest distance = closest match)
         evaluated_candidates.sort(key=lambda x: x["ranking_distance"])
 
-        # 5. Extract top_n candidates and format transparent explanations
+        # 6. Extract top_n candidates and format transparent explanations
         results: List[MatchResult] = []
         for i, item in enumerate(evaluated_candidates[:top_n], start=1):
             sh = item["shade"]
@@ -478,9 +535,13 @@ class FoundationMatchingEngine:
                     match_score=score,
                     undertone=sh.undertone,
                     depth_group=sh.depth_group,
+                    finish=sh.finish,
+                    coverage=sh.coverage,
                     stock_status=sh.stock_status,
                     match_tier=match_tier,
                     ranking_explanation=explanation,
+                    price=sh.price,
+                    currency=sh.currency,
                     product_url=sh.product_url,
                     delta_e_description=de_description,
                 )
@@ -503,6 +564,8 @@ class FoundationMatchingEngine:
             user_skin=user_skin_info,
             candidates=results,
             total_shades_evaluated=len(evaluated_candidates),
+            applied_filters=applied_filters,
+            available_filters=available_filters,
             scoring_formula_metadata=metadata,
         )
 

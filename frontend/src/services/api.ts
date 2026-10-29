@@ -42,11 +42,20 @@ export interface MatchCandidate {
   match_score: number;
   undertone: string;
   depth_group: string;
+  finish?: string;
+  coverage?: string;
+  price?: number;
+  currency?: string;
   stock_status: "in_stock" | "low_stock" | "out_of_stock";
   match_tier: string;
   ranking_explanation: string;
   product_url?: string;
   delta_e_description?: string;
+}
+
+export interface CatalogueFilterOptions {
+  brands: string[];
+  finishes: string[];
 }
 
 export interface ShadeMatchReport {
@@ -59,11 +68,21 @@ export interface ShadeMatchReport {
   };
   candidates: MatchCandidate[];
   total_shades_evaluated: number;
+  applied_filters?: {
+    brand?: string;
+    finish?: string;
+  };
+  available_filters?: {
+    brands?: string[];
+    finishes?: string[];
+  };
   scoring_formula_metadata: {
     formula: string;
     reference_illuminant: string;
     score_type: string;
     score_interpretation: string;
+    status?: string;
+    message?: string;
     config_weights?: Record<string, any>;
   };
 }
@@ -168,7 +187,9 @@ export async function matchShades(
   skinHex: string,
   skinLab?: [number, number, number],
   skinUndertone?: string,
-  topN: number = 3
+  topN: number = 3,
+  brand?: string,
+  finish?: string
 ): Promise<ShadeMatchReport> {
   const payload: Record<string, any> = {
     skin_hex: skinHex,
@@ -179,6 +200,12 @@ export async function matchShades(
   }
   if (skinUndertone) {
     payload.skin_undertone = skinUndertone;
+  }
+  if (brand && brand !== "All") {
+    payload.brand = brand;
+  }
+  if (finish && finish !== "All") {
+    payload.finish = finish;
   }
 
   const res = await fetch(`${API_BASE_URL}/api/v1/match-shades`, {
@@ -198,6 +225,14 @@ export async function matchShades(
     throw new Error(errorDetail);
   }
 
+  return res.json();
+}
+
+export async function fetchCatalogueFilterOptions(): Promise<CatalogueFilterOptions> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/catalogue/filter-options`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch filter options: HTTP ${res.status}`);
+  }
   return res.json();
 }
 

@@ -6,9 +6,10 @@ import {
   Layers,
   ArrowLeft,
   CheckCircle2,
-  Info
+  Info,
+  Sliders,
 } from "lucide-react";
-import type { NormalizedSkinAnalysis } from "../../services/api";
+import type { NormalizedSkinAnalysis, CatalogueFilterOptions } from "../../services/api";
 
 interface AnalysisResultsStepProps {
   analysis: NormalizedSkinAnalysis;
@@ -16,6 +17,11 @@ interface AnalysisResultsStepProps {
   onProceedToMatches: () => void;
   onRetake: () => void;
   isLoadingMatches: boolean;
+  filterOptions?: CatalogueFilterOptions | null;
+  selectedBrand: string;
+  selectedFinish: string;
+  onBrandChange: (brand: string) => void;
+  onFinishChange: (finish: string) => void;
 }
 
 export const AnalysisResultsStep: React.FC<AnalysisResultsStepProps> = ({
@@ -24,9 +30,14 @@ export const AnalysisResultsStep: React.FC<AnalysisResultsStepProps> = ({
   onProceedToMatches,
   onRetake,
   isLoadingMatches,
+  filterOptions,
+  selectedBrand,
+  selectedFinish,
+  onBrandChange,
+  onFinishChange,
 }) => {
   return (
-    <div className="max-w-3xl mx-auto space-y-10">
+    <div className="max-w-3xl mx-auto space-y-10 animate-fadeIn">
       {/* Header */}
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F7F3EC] border border-[#E8E2D9] text-xs font-semibold text-[#8C827A] uppercase tracking-wider">
@@ -79,7 +90,8 @@ export const AnalysisResultsStep: React.FC<AnalysisResultsStepProps> = ({
               />
             </div>
             <div className="text-center text-xs text-[#8C827A]">
-              Facial chromatic baseline: <span className="font-mono font-bold text-[#23201E]">{analysis.hex_color}</span>
+              Facial chromatic baseline:{" "}
+              <span className="font-mono font-bold text-[#23201E]">{analysis.hex_color}</span>
             </div>
           </div>
 
@@ -157,6 +169,57 @@ export const AnalysisResultsStep: React.FC<AnalysisResultsStepProps> = ({
             lightness (L*). Fitzpatrick phototype is a clinical classification of UV burn/tan response and
             cannot be medically diagnosed from color alone.
           </span>
+        </div>
+      </div>
+
+      {/* Optional Foundation Preferences (Brand & Finish) */}
+      <div className="bg-white rounded-3xl border border-[#EFE8DC] p-6 sm:p-8 shadow-sm space-y-4">
+        <div className="flex items-center gap-2">
+          <Sliders className="w-4 h-4 text-[#C5A880]" />
+          <h3 className="font-serif font-bold text-base text-[#23201E]">
+            Narrow By Brand & Finish (Optional)
+          </h3>
+        </div>
+        <p className="text-xs text-[#59524B]">
+          Filter candidate foundation shades by brand or desired finish before ranking, or leave as "All" to match across the entire catalogue.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          {/* Brand Filter */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-[#8C827A] uppercase tracking-wider block">
+              Preferred Brand
+            </label>
+            <select
+              value={selectedBrand}
+              onChange={(e) => onBrandChange(e.target.value)}
+              className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-[#E8E2D9] bg-[#FAF8F5] text-[#23201E] focus:outline-none focus:ring-1 focus:ring-[#C5A880]"
+            >
+              {(filterOptions?.brands || ["All"]).map((b) => (
+                <option key={b} value={b}>
+                  {b === "All" ? "All Brands (Complete Assortment)" : b}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Finish Filter */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-[#8C827A] uppercase tracking-wider block">
+              Formula Finish
+            </label>
+            <select
+              value={selectedFinish}
+              onChange={(e) => onFinishChange(e.target.value)}
+              className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-[#E8E2D9] bg-[#FAF8F5] text-[#23201E] focus:outline-none focus:ring-1 focus:ring-[#C5A880]"
+            >
+              {(filterOptions?.finishes || ["All"]).map((f) => (
+                <option key={f} value={f}>
+                  {f === "All" ? "All Finishes (Matte, Satin, Radiant)" : f}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
