@@ -242,6 +242,7 @@ export const ShadeFinderView: React.FC = () => {
             activeShade={selectedShade}
             candidates={matchReport.candidates}
             vtoResult={vtoResult}
+            userSkin={matchReport.user_skin}
             onSwitchCandidate={handleSelectShadeForTryOn}
             onReRenderWithSettings={handleReRenderWithSettings}
             onRestart={handleRestart}
