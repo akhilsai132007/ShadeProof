@@ -1,93 +1,57 @@
-# ShadeProof — Hackathon Video Demonstration Script (2–3 Minutes)
-**Hackathon:** YouCam API Skin AI & eCommerce VTO Hackathon 2026  
+# ShadeProof — Hackathon Video Demonstration Script (2 Minutes 30 Seconds)
+**Competition:** YouCam API Skin AI & eCommerce VTO Hackathon 2026  
 **Project:** ShadeProof — AI Foundation Shade Matcher & Virtual Try-On  
 **Presenter:** Engineering Lead / Founder  
-**Target Duration:** 2 minutes 30 seconds  
+**Target Duration:** 2 minutes 30 seconds (150 seconds)  
+**Speaking Rate:** ~135–145 words per minute (natural, confident, unhurried)
 
 ---
 
-### [0:00 – 0:30] Hook & The eCommerce Problem
+## Screen & Audio Cue Matrix
 
-**Visual:**
-Open on the ShadeProof landing page hero (*"Find your closest foundation match. See it before you buy it."*).
-
-**Spoken Script:**
-> *"Online cosmetics shopping has a massive problem: foundation return rates consistently exceed 30%. Why? Because shoppers cannot physically swatch shades on their skin, and lighting makes choosing a shade from a catalog swatch pure guesswork.*
->
-> *At the same time, beauty retailers have huge inventory blind spots—many don't realize their catalogues under-serve olive or deep complexions until customers abandon their carts.*
->
-> *We built **ShadeProof** to solve both sides of this problem. We bridge Perfect Corp’s YouCam Skin AI and Virtual Makeup Try-On with an objective perceptual color matching engine and anAssortment Coverage Suite for merchants."*
-
----
-
-### [0:30 – 1:15] Consumer Experience: Skin AI & Scientific Diagnostics
-
-**Visual:**
-1. Scroll down to Step 1 (Selfie Intake).
-2. Point out the **Lighting Guidance** and **Data Privacy Consent Notice**.
-3. Click the 1-Click Evaluation Portrait: **"Sofia — Medium Warm"** (or use live webcam / file upload).
-4. Click **"Analyze Skin Tone & Undertone"**.
-5. The screen transitions to Step 2: **Skin Diagnostics**.
-
-**Spoken Script:**
-> *"The consumer flow begins with privacy-first intake. The user can take a webcam snapshot, upload a photo, or test with our calibrated demo portraits. Notice our explicit consent disclosure—images are processed strictly in memory and are never persisted.*
->
-> *When we click 'Analyze', ShadeProof stages the image via YouCam’s 2-step presigned S3 upload, triggers `/s2s/v2.0/task/skin-tone-analysis`, and polls for completion.*
->
-> *Here is the diagnostic result: YouCam's AI extracts the facial chromatic baseline, depth level, and undertone. We also calculate the dermatological Individual Typology Angle (ITA) and calibrated CIE L\*a\*b\* coordinates under standard D65 illuminant—with an explicit disclosure that tone depth is colorimetric, not a medical Fitzpatrick diagnosis."*
+| Timestamp | Screen Action | Spoken Narration | Focus & Hackathon Criteria |
+| :--- | :--- | :--- | :--- |
+| **0:00 – 0:18** <br>*(18 sec)* | **Landing Screen (`ShadeFinderView`):** <br>Mouse hovers over the clean hero title *"Find Your Foundation Shade with Objective Color Science"* on the ivory and charcoal interface. | *"Buying foundation online is notoriously frustrating. Swatches on digital screens rarely match real skin, leading to return rates exceeding 30% across beauty eCommerce. Shoppers are forced to guess. **ShadeProof** solves this by connecting Perfect Corp's YouCam Skin AI to mathematical color matching, virtual try-on, and real-time merchant catalogue insights."* | **Problem Hook:** <br>Addresses high return rates and shade uncertainty in digital retail. |
+| **0:18 – 0:30** <br>*(12 sec)* | **Top Navigation & Status Pill:** <br>Click the persistent status pill (`Sandbox Demo` or `Live YouCam`) in the top navbar. The Diagnostics Drawer smoothly opens. Hover over the gateway host (`https://yce-api-01.makeupar.com`) and close it. | *"First, transparency for our judges: In the top navigation, our diagnostic status pill shows the exact backend execution mode. Whether running in Live YouCam API mode or deterministic sandbox demo mode, credentials stay securely server-side—giving judges full visibility into our API pipeline."* | **Judge Transparency:** <br>Explicitly demonstrates backend configuration without hiding API mode. |
+| **0:30 – 0:52** <br>*(22 sec)* | **Selfie Upload & YouCam Skin AI Analysis:** <br>Click *"Select Verified Demo Portrait"* (or upload a selfie). Check the privacy consent box and click *"Analyze My Skin Tone"*. The loading state pulses briefly, then renders `AnalysisResultsStep`. | *"Let's find our match. We provide our selfie and give consent. ShadeProof securely stages the asset with YouCam's file API and triggers the Skin Tone Task. Here are the genuine normalized results: CIELAB coordinates, an Individual Typology Angle of 36.2 degrees, and Fitzpatrick Type III with a warm undertone. We don't invent confidence percentages—we rely on dermatological metrics."* | **YouCam AI Integration (API 1):** <br>`POST /s2s/v2.0/file`<br>`POST /s2s/v2.0/task/skin-tone`<br>Real CIELAB & ITA metrics. |
+| **0:52 – 1:18** <br>*(26 sec)* | **Brand/Finish Filter & CIEDE2000 Matching:** <br>Under *"Narrow By Brand & Finish"*, select *"Aura Botanica"* and *"Natural Satin"*. Click *"Find My Best Matches"*. The three candidate cards appear with $\Delta E_{00}$ badges. | *"Before ranking, shoppers can narrow by their preferred brand and finish. Our engine applies these constraints before ranking the catalogue using CIEDE2000 color difference—the international standard for color delta ($\Delta E_{00}$). Rank number one is 'Medium Warm Amber' with a $\Delta E_{00}$ of 0.82. We display the mathematical color distance transparently rather than claiming a 100% guarantee."* | **Matching Engine & User Controls:** <br>Pre-ranking catalogue filtering, Sharma CIEDE2000 math, undertone compatibility. |
+| **1:18 – 1:50** <br>*(32 sec)* | **Virtual Try-On & Comparison Slider:** <br>Click *"Try On This Shade"*. The screen transitions to `TryOnStep`. Drag the smooth before/after comparison slider left and right across the face. Click *"Swatch Compare"* to pop open the comparison modal, then close it. | *"Now we see the foundation on the shopper's face using YouCam's Foundation Virtual Try-On API. Our split slider uses native CSS clip-paths, maintaining 1:1 portrait aspect ratio without horizontal stretching. Notice there's zero fake CSS tint—this is the pure YouCam render. Shoppers can open our Swatch Comparison modal to view the analyzed skin swatch alongside the product pigment, with clear notes on formula finish, oxidization, and ambient lighting."* | **YouCam Makeup VTO (API 2):** <br>`POST /s2s/v2.0/task/makeup`<br>Undistorted before/after comparison, no CSS overlays, honest color science. |
+| **1:50 – 2:18** <br>*(28 sec)* | **Merchant Insights Dashboard:** <br>Click *"Merchant Insights"* in the top navigation. Scroll to the 20-cell Depth × Undertone Coverage Matrix. Point out the red *"Critical Gap"* cell (e.g., Deep Cool) and click *"Assortment Restock Simulator"*. Show simulated coverage rise from 79% to 92%. | *"Shade matching is only half the equation. We built **Merchant Insights** to help retailers identify coverage gaps. This 20-cell Depth by Undertone matrix aggregates real catalogue inventory. A merchant can instantly spot vulnerabilities—like out-of-stock Deep Cool shades. With our Restock Simulator, merchants can project inventory investments and export assortment data directly to CSV."* | **eCommerce Value:** <br>Actionable merchant analytics, inventory gap detection, restock simulation. |
+| **2:18 – 2:30** <br>*(12 sec)* | **Return to App Header & Closing Hook:** <br>Click *"Shade Finder"* to return home. Pause on the polished UI. | *"Foundation shopping shouldn't be guesswork for consumers or a blind spot for retailers. ShadeProof bridges YouCam's visual AI with rigorous color science and commercial utility. Thank you."* | **Memorable Closing:** <br>Concise, professional finish within the 2:30 limit. |
 
 ---
 
-### [1:15 – 1:50] The Matching Engine & Virtual Try-On
+## Presenter Rehearsal Checklist
 
-**Visual:**
-1. Click **"Find Best Foundation Matches"**.
-2. Transition to Step 3: Top 3 candidate foundation cards appear.
-3. Highlight the visible **ΔE₀₀ (Delta-E)** values, ranking explanations, and **"Check Store Stock"** button.
-4. Click **"Try On My Face (YouCam AR)"** on Candidate #1.
-5. Transition to Step 4: Virtual Try-On comparison viewer. Toggle between **Side-by-Side** and **Split View**.
-6. Move the coverage and pigment intensity sliders and demonstrate real-time optical blending.
-7. Click **"Add to Bag"** to show eCommerce conversion.
-
-**Spoken Script:**
-> *"Now our standalone matching engine kicks in. We do not use fake ML scores or black-box guessing. We implement the peer-reviewed **Sharma CIEDE2000 standard** to evaluate perceptual color difference between the user's skin and our foundation catalogue, applying an undertone penalty matrix.*
->
-> *Notice our transparency: the actual ΔE₀₀ distance is visible on every card, along with explanations of why each shade was ranked.*
->
-> *When the user selects a shade, ShadeProof calls YouCam’s foundation makeup VTO endpoint: `POST /s2s/v2.0/task/makeup-vto`. The foundation pigment is rendered realistically onto their facial contours.*
->
-> *Shoppers can switch between side-by-side and an interactive split-slider, fine-tune coverage opacity and dewy finish, and immediately checkout with confidence."*
+### Before Pressing Record
+1. **Screen Resolution:** Set browser display to 1080p (1920×1080) at 100% zoom.
+2. **Local Services Running:**
+   - Backend: `python -m uvicorn app.main:app --reload --port 8000`
+   - Frontend: `npm run dev` (Vite running on `http://localhost:5173`)
+3. **Database Populated:** Verify the 24-shade multi-brand database is seeded (`shadeproof.db`).
+4. **Execution Mode Check:**
+   - Check the navbar status pill. If recording with live credentials, confirm the green `Live YouCam` pill is active. If recording in demo mode, confirm the amber `Sandbox Demo` pill is active.
 
 ---
 
-### [1:50 – 2:30] Merchant Analytics: Assortment Matrix & Restock Simulator
+## Contingency & Backup Plan (If Live API Fails or Rates Limit During Recording)
 
-**Visual:**
-1. Click the **"Merchant Insights"** tab in the top navigation.
-2. Highlight the **4 KPI Cards** (Active SKUs, Coverage Index 60%, Critical Gaps, Vulnerable Segments).
-3. Walk through the **2D Assortment Heatmap Matrix** ($5 \text{ Depth} \times 4 \text{ Undertone}$).
-4. Click a red cell (e.g., *Fair • Olive* or *Deep • Warm*). Show the **Segment Inspector**.
-5. Click **"Simulate Sourcing +2 SKUs"** and watch the Coverage Index jump from 60% to 65%!
-6. Click **"Export CSV Report"** to download the structured retailer planning spreadsheet.
+> [!IMPORTANT]
+> If a live YouCam API request experiences a network timeout, rate limit (HTTP 429), or authentication hiccup during your recording, **do not panic or stop recording**.
 
-**Spoken Script:**
-> *"Now let's switch to the merchant perspective. Retailers need to know where their foundation catalogue is lacking.*
->
-> *Our 2D Assortment Matrix maps all 20 depth and undertone intersections. It flags critical gaps—segments with zero formulated shades—and single-point-of-failure inventory.*
->
-> *Notice our unique **Assortment Simulator**: merchants can model adding 2 SKUs to an underserved segment and immediately see their catalogue coverage score increase.*
->
-> *And with one click, they can export a structured CSV report for their merchandising and procurement teams."*
+### What to Do:
+1. **Rely on the Diagnostics Status Pill:**
+   - Click the status pill in the top navigation bar.
+   - Say: *"Our application is built with fault tolerance. When offline or during rate limits, ShadeProof seamlessly activates calibrated sandbox evaluation fixtures to ensure zero presentation downtime."*
+2. **Why Judges Value This:**
+   - In hackathons, API rate limits and network latency are expected.
+   - Showing an intentional, robust fallback mechanism with clear status disclosures proves senior architectural maturity and operational resilience.
+   - You never have to disguise sandbox fixtures as live calls; the system explicitly labels them as verified fixtures.
 
 ---
 
-### [2:30 – 2:50] Architectural Rigor & Conclusion
+## Strict Honesty & Compliance Guidelines
 
-**Visual:**
-1. Switch briefly to the **"About & Science"** tab or show the terminal with **39 passing automated tests**.
-2. Point out the live backend status indicator in the top navbar.
-
-**Spoken Script:**
-> *"Under the hood, ShadeProof features a Python 3.13 FastAPI backend, React 19 frontend, 39 automated unit tests verifying Sharma benchmarks and YouCam API contracts, and a zero-dependency sandbox evaluation mode so judges can evaluate the platform seamlessly.*
->
-> *ShadeProof turns foundation shopping from an uncertain gamble into a validated, visual, and delightfully confident eCommerce experience. Thank you!"*
+- **No "Clinical Validation" Claims:** Describe CIEDE2000 as the *standard spectrophotometric color distance formula*, not a clinical dermatological diagnostic.
+- **No "Perfect Match Guarantee":** Explicitly note that digital $\Delta E_{00}$ calculations under D65 daylight provide an objective ranking baseline, but physical foundation matches are influenced by formula finish (matte vs. radiant), skin type, coverage level, and oxidization.
+- **No Invented Business Metrics:** Reference the 20-cell matrix and inventory stock levels from the real SQLite database—do not invent fake customer survey statistics or conversion rate percentages.
