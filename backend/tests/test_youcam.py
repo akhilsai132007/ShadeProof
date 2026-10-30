@@ -314,3 +314,92 @@ def test_api_analyze_skin_sandbox_fair_and_deep_fixtures(client):
     assert data_deep["undertone"] == "Warm"
     assert data_deep["hex_color"] == "#5C3826"
 
+
+# -----------------------------------------------------------------------------
+# 5. Diagnostics Endpoint & Mode Detection Tests
+# -----------------------------------------------------------------------------
+
+def test_api_diagnostics_sandbox_mode(client):
+    """Verify diagnostics returns sandbox status when no API key is configured."""
+    with patch("app.services.youcam_service.settings.YOUCAM_API_KEY", ""):
+        res = client.get("/api/v1/diagnostics")
+        assert res.status_code == 200
+        data = res.json()
+
+        assert data["mode"] == "sandbox"
+        assert data["mode_label"] == "Sandbox Demo Mode"
+        assert data["has_api_key"] is False
+        assert data["connectivity"]["status"] == "not_configured"
+        assert len(data["supported_endpoints"]) == 3
+        assert "Sandbox Demo Mode" in data["sandbox_info"]["title"]
+        assert "YOUCAM_API_KEY" in data["setup_guide"]["instructions"][1]
+
+        # Security check: Ensure no secrets leak
+        response_text = res.text
+        assert "api_key" not in data or data["api_key"] is None  # no raw key field
+        assert "Bearer" not in response_text
+
+
+def test_api_diagnostics_live_mode_never_exposes_key(client):
+    """Verify diagnostics returns live status when key is configured and never leaks key."""
+    secret_key = "super_secret_perfect_corp_token_xyz888"
+    with patch("app.services.youcam_service.settings.YOUCAM_API_KEY", secret_key):
+        res = client.get("/api/v1/diagnostics")
+        assert res.status_code == 200
+        data = res.json()
+
+        assert data["mode"] == "live"
+        assert data["mode_label"] == "Live YouCam API"
+        assert data["has_api_key"] is True
+
+        # STRICT SECURITY CHECK: The raw secret key must NEVER appear in the response payload
+        assert secret_key not in res.text
+
+
+def test_api_diagnostics_live_connectivity_check_connected(client):
+    """Verify active connectivity probe when live API gateway responds."""
+    fake_resp = httpx.Response(status_code=400, json={"error": "missing parameter files"})
+    with patch("app.services.youcam_service.settings.YOUCAM_API_KEY", "valid_key_123"), \
+         patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = fake_resp
+
+        res = client.get("/api/v1/diagnostics?check_connectivity=true")
+        assert res.status_code == 200
+        data = res.json()
+
+        assert data["mode"] == "live"
+        assert data["connectivity"]["status"] == "connected"
+        assert data["connectivity"]["checked"] is True
+        assert data["connectivity"]["http_status"] == 400
+        assert "Connected and authenticated" in data["connectivity"]["message"]
+
+
+def test_api_diagnostics_live_connectivity_auth_failure(client):
+    """Verify diagnostic messaging when YouCam returns HTTP 401."""
+    fake_resp = httpx.Response(status_code=401, json={"message": "Unauthorized"})
+    with patch("app.services.youcam_service.settings.YOUCAM_API_KEY", "expired_key_456"), \
+         patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = fake_resp
+
+        res = client.get("/api/v1/diagnostics?check_connectivity=true")
+        assert res.status_code == 200
+        data = res.json()
+
+        assert data["connectivity"]["status"] == "auth_failed"
+        assert data["connectivity"]["http_status"] == 401
+        assert "authentication failed" in data["connectivity"]["message"]
+
+
+def test_api_diagnostics_live_connectivity_unreachable(client):
+    """Verify diagnostic messaging when gateway is unreachable or times out."""
+    with patch("app.services.youcam_service.settings.YOUCAM_API_KEY", "some_key"), \
+         patch("httpx.AsyncClient.post", side_effect=httpx.ConnectTimeout("Network unreachable")):
+
+        res = client.get("/api/v1/diagnostics?check_connectivity=true")
+        assert res.status_code == 200
+        data = res.json()
+
+        assert data["connectivity"]["status"] == "unreachable"
+        assert "timed out" in data["connectivity"]["message"] or "Network error" in data["connectivity"]["message"]
+
+

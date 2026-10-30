@@ -79,6 +79,87 @@ class YouCamClient:
                 details=body
             )
 
+    async def check_connectivity(self, timeout: float = 3.0) -> Dict[str, Any]:
+        """
+        Safely probes YouCam API gateway reachability and credential validity.
+        Never exposes the API key or secret in results or error messages.
+        """
+        import time
+
+        if not self.is_configured:
+            return {
+                "status": "not_configured",
+                "checked": True,
+                "http_status": None,
+                "latency_ms": None,
+                "message": "No YOUCAM_API_KEY configured in backend/.env. Operating in Sandbox Demo mode.",
+            }
+
+        start = time.perf_counter()
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                # Probe the documented file endpoint with empty payload to test authentication
+                resp = await client.post(
+                    f"{self.base_url}/s2s/v2.0/file",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key.strip()}",
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    },
+                    json={},
+                )
+                elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
+
+                if resp.status_code in (401, 403):
+                    return {
+                        "status": "auth_failed",
+                        "checked": True,
+                        "http_status": resp.status_code,
+                        "latency_ms": elapsed_ms,
+                        "message": f"YouCam API reached, but authentication failed (HTTP {resp.status_code}). Verify YOUCAM_API_KEY.",
+                    }
+                elif resp.status_code == 429:
+                    return {
+                        "status": "rate_limited",
+                        "checked": True,
+                        "http_status": resp.status_code,
+                        "latency_ms": elapsed_ms,
+                        "message": "YouCam API rate limit reached (250 req/300s). Key is valid but temporarily throttled.",
+                    }
+                else:
+                    # 200/201 or 400 (validation error because json was empty) means gateway is reachable and authenticated
+                    return {
+                        "status": "connected",
+                        "checked": True,
+                        "http_status": resp.status_code,
+                        "latency_ms": elapsed_ms,
+                        "message": f"Connected and authenticated with YouCam API gateway ({self.base_url}) in {elapsed_ms}ms.",
+                    }
+        except httpx.TimeoutException:
+            return {
+                "status": "unreachable",
+                "checked": True,
+                "http_status": None,
+                "latency_ms": None,
+                "message": f"Connection timed out after {timeout}s while connecting to {self.base_url}.",
+            }
+        except httpx.RequestError as exc:
+            return {
+                "status": "unreachable",
+                "checked": True,
+                "http_status": None,
+                "latency_ms": None,
+                "message": f"Network error connecting to {self.base_url}: {type(exc).__name__}",
+            }
+        except Exception as exc:
+            return {
+                "status": "unreachable",
+                "checked": True,
+                "http_status": None,
+                "latency_ms": None,
+                "message": f"Unexpected error checking connectivity: {type(exc).__name__}",
+            }
+
     # -------------------------------------------------------------------------
     # 1. File Upload Workflow (2-step S3 Presigned Handshake)
     # -------------------------------------------------------------------------

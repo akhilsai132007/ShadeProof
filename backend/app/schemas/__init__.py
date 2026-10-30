@@ -3,9 +3,17 @@ from app.schemas.shade import (
     FoundationShadeCreate,
     FoundationShadeResponse,
 )
+from app.schemas.diagnostics import (
+    DiagnosticsResponse,
+    DiagnosticsConnectivity,
+    DiagnosticsEndpoint,
+)
 
 __all__ = [
     "FoundationShadeBase",
     "FoundationShadeCreate",
     "FoundationShadeResponse",
+    "DiagnosticsResponse",
+    "DiagnosticsConnectivity",
+    "DiagnosticsEndpoint",
 ]

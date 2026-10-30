@@ -139,14 +139,59 @@ export interface SystemInfo {
   app_name: string;
   env: string;
   debug: boolean;
+  mode?: "live" | "sandbox";
   youcam_configured: boolean;
   youcam_base_url: string;
   evaluation_mode: string;
 }
 
+export interface DiagnosticsConnectivity {
+  status: "connected" | "ready" | "not_configured" | "auth_failed" | "rate_limited" | "unreachable";
+  checked: boolean;
+  http_status: number | null;
+  latency_ms: number | null;
+  message: string;
+}
+
+export interface DiagnosticsEndpoint {
+  name: string;
+  path: string;
+  method: string;
+  description: string;
+}
+
+export interface DiagnosticsResponse {
+  mode: "live" | "sandbox";
+  mode_label: string;
+  has_api_key: boolean;
+  base_url: string;
+  connectivity: DiagnosticsConnectivity;
+  supported_endpoints: DiagnosticsEndpoint[];
+  sandbox_info: {
+    title: string;
+    explanation: string;
+    guarantees: string[];
+  };
+  setup_guide: {
+    env_variable: string;
+    target_file: string;
+    instructions: string[];
+    security_guarantee: string;
+  };
+  timestamp: string;
+}
+
 // ----------------------------------------------------------------------------
 // API Methods
 // ----------------------------------------------------------------------------
+
+export async function fetchDiagnostics(checkConnectivity: boolean = false): Promise<DiagnosticsResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/diagnostics?check_connectivity=${checkConnectivity}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch diagnostics: HTTP ${res.status}`);
+  }
+  return res.json();
+}
 
 export async function fetchSystemInfo(): Promise<SystemInfo> {
   const res = await fetch(`${API_BASE_URL}/api/v1/system-info`);

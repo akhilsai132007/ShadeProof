@@ -1,5 +1,6 @@
 import math
 import logging
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from app.config import settings
 from app.seed.seed_data import hex_to_lab
@@ -78,7 +79,88 @@ class YouCamService:
 
     @property
     def has_live_credentials(self) -> bool:
+        if bool(settings.YOUCAM_API_KEY.strip()):
+            self.client.api_key = settings.YOUCAM_API_KEY.strip()
+            self.client.base_url = settings.YOUCAM_BASE_URL.rstrip("/")
         return self.client.is_configured
+
+    async def get_diagnostics(self, check_connectivity: bool = False) -> Dict[str, Any]:
+        """
+        Returns safe system diagnostics indicating whether ShadeProof is running
+        in Live YouCam S2S API mode or Sandbox Demo Mode, credentials status,
+        documented endpoints, and optional connectivity status.
+        Guarantees that raw credentials and secrets are NEVER returned.
+        """
+        is_live = self.has_live_credentials
+        mode = "live" if is_live else "sandbox"
+        mode_label = "Live YouCam API" if is_live else "Sandbox Demo Mode"
+
+        if check_connectivity:
+            connectivity = await self.client.check_connectivity()
+        else:
+            connectivity = {
+                "status": "ready" if is_live else "not_configured",
+                "checked": False,
+                "http_status": None,
+                "latency_ms": None,
+                "message": (
+                    "API key is configured. Ready for live YouCam S2S API requests."
+                    if is_live
+                    else "No YOUCAM_API_KEY configured in backend/.env. Operating in Sandbox Demo mode."
+                ),
+            }
+
+        return {
+            "mode": mode,
+            "mode_label": mode_label,
+            "has_api_key": is_live,
+            "base_url": settings.YOUCAM_BASE_URL,
+            "connectivity": connectivity,
+            "supported_endpoints": [
+                {
+                    "name": "File Upload",
+                    "path": "/s2s/v2.0/file",
+                    "method": "POST",
+                    "description": "Registers image metadata & gets presigned S3 upload URL",
+                },
+                {
+                    "name": "Skin Tone Analysis",
+                    "path": "/s2s/v2.0/task/skin-tone",
+                    "method": "POST",
+                    "description": "Analyzes CIELAB coordinates, ITA angle, and facial colors",
+                },
+                {
+                    "name": "Makeup Virtual Try-On",
+                    "path": "/s2s/v2.0/task/makeup",
+                    "method": "POST",
+                    "description": "Applies foundation color, coverage & finish over source portrait",
+                },
+            ],
+            "sandbox_info": {
+                "title": "Sandbox Demo Mode (Calibrated Fixtures)",
+                "explanation": (
+                    "In Sandbox Demo mode, skin-tone analysis and virtual try-on outputs "
+                    "are deterministic demo fixtures calibrated for hackathon judging and testing. "
+                    "No external API credits are consumed."
+                ),
+                "guarantees": [
+                    "Zero external API latency or billing consumption",
+                    "Deterministic CIEDE2000 math across the real database shade catalogue",
+                    "100% offline availability for judging presentations and automated tests",
+                ],
+            },
+            "setup_guide": {
+                "env_variable": "YOUCAM_API_KEY",
+                "target_file": "backend/.env",
+                "instructions": [
+                    "Open backend/.env in your text editor.",
+                    "Set YOUCAM_API_KEY=<your_perfect_corp_api_key>",
+                    "Restart the FastAPI backend server to load credentials.",
+                ],
+                "security_guarantee": "API credentials are held exclusively server-side in backend/.env and never exposed to the client browser.",
+            },
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
 
     async def analyze_skin_tone(
         self,

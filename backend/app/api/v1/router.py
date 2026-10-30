@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.shade import FoundationShade
 from app.schemas.shade import FoundationShadeResponse
+from app.schemas.diagnostics import DiagnosticsResponse
 from app.config import settings
 from app.services.youcam_service import youcam_service
 from app.services.youcam_schemas import (
@@ -58,10 +59,35 @@ def get_system_info():
         "app_name": settings.APP_NAME,
         "env": settings.ENV,
         "debug": settings.DEBUG,
+        "mode": "live" if youcam_service.has_live_credentials else "sandbox",
         "youcam_configured": youcam_service.has_live_credentials,
         "youcam_base_url": settings.YOUCAM_BASE_URL,
         "evaluation_mode": "Live YouCam S2S API" if youcam_service.has_live_credentials else "Sandbox Evaluation Mode",
     }
+
+
+@api_router.get(
+    "/diagnostics",
+    response_model=DiagnosticsResponse,
+    tags=["System"],
+    summary="Get execution mode, API credential presence & connectivity diagnostics"
+)
+async def get_diagnostics(
+    check_connectivity: bool = Query(
+        False,
+        description="Actively probe YouCam API gateway reachability and auth validity"
+    )
+):
+    """
+    Returns comprehensive system diagnostics for hackathon judges and developers:
+    - Current execution mode ('live' vs 'sandbox')
+    - Whether YouCam API credentials are configured server-side
+    - Documented YouCam S2S v2.0 endpoint specifications
+    - Explanation of Sandbox Demo Mode
+    - Safe connectivity probe results (without leaking credentials)
+    - Instructions on how to configure live mode in backend/.env
+    """
+    return await youcam_service.get_diagnostics(check_connectivity=check_connectivity)
 
 
 # -----------------------------------------------------------------------------

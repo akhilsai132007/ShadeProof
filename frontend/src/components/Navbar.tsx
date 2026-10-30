@@ -1,5 +1,16 @@
 import React, { useState } from "react";
-import { Sparkles, BarChart3, Info, Menu, X, ShieldCheck } from "lucide-react";
+import {
+  Sparkles,
+  BarChart3,
+  Info,
+  Menu,
+  X,
+  ShieldCheck,
+  ChevronRight,
+  Zap,
+  FlaskConical,
+} from "lucide-react";
+import type { DiagnosticsResponse } from "../services/api";
 
 export type NavTab = "finder" | "merchant" | "about";
 
@@ -7,12 +18,18 @@ interface NavbarProps {
   currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   backendHealthy: boolean | null;
+  diagnostics: DiagnosticsResponse | null;
+  diagnosticsLoading: boolean;
+  onOpenDiagnostics: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentTab,
   onSelectTab,
   backendHealthy,
+  diagnostics,
+  diagnosticsLoading,
+  onOpenDiagnostics,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -27,8 +44,10 @@ export const Navbar: React.FC<NavbarProps> = ({
     setMobileMenuOpen(false);
   };
 
+  const isLive = diagnostics?.mode === "live";
+
   return (
-    <header className="sticky top-0 z-50 bg-[#FDFBF7]/90 backdrop-blur-md border-b border-[#EFE8DC]">
+    <header className="sticky top-0 z-40 bg-[#FDFBF7]/90 backdrop-blur-md border-b border-[#EFE8DC]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Logo & Brand */}
@@ -58,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   key={item.id}
                   onClick={() => handleSelect(item.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-200 cursor-pointer ${
                     isActive
                       ? "bg-[#23201E] text-white shadow-sm"
                       : "text-[#59524B] hover:text-[#23201E] hover:bg-[#F2ECE1]"
@@ -71,35 +90,78 @@ export const Navbar: React.FC<NavbarProps> = ({
             })}
           </nav>
 
-          {/* Backend Status Indicator & CTA */}
+          {/* Diagnostic Status Indicator & Hackathon Badge */}
           <div className="hidden sm:flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F7F3EC] border border-[#E8E2D9] text-xs">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  backendHealthy === true
-                    ? "bg-emerald-500 animate-pulse"
-                    : backendHealthy === false
-                    ? "bg-rose-500"
-                    : "bg-amber-400"
-                }`}
-              />
-              <span className="text-[#59524B] font-medium">
-                {backendHealthy === true
-                  ? "API Online"
-                  : backendHealthy === false
-                  ? "API Offline"
-                  : "Connecting..."}
-              </span>
-            </div>
+            {/* Status Pill Button */}
+            {diagnosticsLoading ? (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FAF7F2] border border-[#E8E2D9] text-xs text-[#8C827A]">
+                <span className="w-2 h-2 rounded-full bg-[#C5A880] animate-pulse" />
+                <span>Checking mode...</span>
+              </div>
+            ) : backendHealthy === false ? (
+              <button
+                onClick={onOpenDiagnostics}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold hover:bg-rose-100 transition-colors cursor-pointer group shadow-xs"
+                title="Backend offline. Click for diagnostics."
+              >
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                <span>Backend Offline</span>
+                <ChevronRight className="w-3.5 h-3.5 text-rose-500 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            ) : isLive ? (
+              <button
+                onClick={onOpenDiagnostics}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 hover:border-emerald-400 transition-all shadow-xs cursor-pointer group"
+                title="Live YouCam S2S API active. Click for diagnostics."
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <Zap className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Live YouCam</span>
+                <ChevronRight className="w-3.5 h-3.5 text-emerald-600 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            ) : (
+              <button
+                onClick={onOpenDiagnostics}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50/90 border border-amber-300 text-amber-900 text-xs font-semibold hover:bg-amber-100/90 hover:border-amber-400 transition-all shadow-xs cursor-pointer group"
+                title="Sandbox demo fixtures active. Click for diagnostics."
+              >
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                <FlaskConical className="w-3.5 h-3.5 text-amber-700" />
+                <span>Sandbox Demo</span>
+                <ChevronRight className="w-3.5 h-3.5 text-amber-700 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            )}
 
-            <div className="flex items-center gap-1 text-xs text-[#8C827A] font-medium">
+            <div className="flex items-center gap-1 text-xs text-[#8C827A] font-medium border-l border-[#E8E2D9] pl-3">
               <ShieldCheck className="w-3.5 h-3.5 text-[#C5A880]" />
               <span>Hackathon 2026</span>
             </div>
           </div>
 
-          {/* Mobile menu button */}
-          <div className="flex md:hidden items-center">
+          {/* Mobile Right Controls: Status Pill + Menu Button */}
+          <div className="flex sm:hidden items-center gap-2">
+            <button
+              onClick={onOpenDiagnostics}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+                backendHealthy === false
+                  ? "bg-rose-50 border-rose-200 text-rose-700"
+                  : isLive
+                  ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+                  : "bg-amber-50 border-amber-300 text-amber-900"
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  backendHealthy === false
+                    ? "bg-rose-500"
+                    : isLive
+                    ? "bg-emerald-500 animate-pulse"
+                    : "bg-amber-500"
+                }`}
+              />
+              <span>{isLive ? "Live" : "Sandbox"}</span>
+            </button>
+
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-lg text-[#59524B] hover:text-[#23201E] hover:bg-[#F7F3EC]"
@@ -132,11 +194,37 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             );
           })}
-          <div className="pt-2 border-t border-[#EFE8DC] flex items-center justify-between text-xs text-[#8C827A] px-2">
-            <span>FastAPI Backend:</span>
-            <span className="font-semibold text-[#23201E]">
-              {backendHealthy ? "Connected (Port 8000)" : "Offline"}
-            </span>
+
+          <div className="pt-3 border-t border-[#EFE8DC] space-y-2">
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenDiagnostics();
+              }}
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-[#E8E2D9] text-xs text-[#23201E]"
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    isLive ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                  }`}
+                />
+                <span className="font-semibold">
+                  Mode: {diagnostics?.mode_label || (isLive ? "Live YouCam" : "Sandbox Demo")}
+                </span>
+              </div>
+              <span className="text-[#C5A880] font-medium flex items-center">
+                Diagnostics
+                <ChevronRight className="w-3.5 h-3.5 ml-1" />
+              </span>
+            </button>
+
+            <div className="flex items-center justify-between text-xs text-[#8C827A] px-2">
+              <span>FastAPI Backend:</span>
+              <span className="font-semibold text-[#23201E]">
+                {backendHealthy ? "Connected (Port 8000)" : "Offline"}
+              </span>
+            </div>
           </div>
         </div>
       )}
