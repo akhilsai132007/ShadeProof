@@ -494,7 +494,7 @@ export const TryOnStep: React.FC<TryOnStepProps> = ({
                 </span>
               </div>
               <div className="text-center text-xs font-semibold text-[#23201E]">
-                Rendered with YouCam Makeup VTO
+                {vtoResult.is_sandbox_mode ? "YouCam Makeup VTO Simulation Fixture" : "Rendered with YouCam Makeup VTO"}
               </div>
             </div>
           </div>

@@ -123,6 +123,7 @@ class NormalizedSkinAnalysis(BaseModel):
     confidence: float     # 0.0 to 1.0
     facial_colors: Optional[Dict[str, Any]] = None
     is_sandbox_mode: bool = False
+    analysis_source: str = "youcam_live_api"  # "youcam_live_api" | "sandbox_image_analysis" | "sandbox_preset_fixture"
     raw_response: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True)

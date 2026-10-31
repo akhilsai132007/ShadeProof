@@ -28,6 +28,7 @@ export interface NormalizedSkinAnalysis {
     hair?: { hex: string };
   };
   is_sandbox_mode: boolean;
+  analysis_source?: "youcam_live_api" | "sandbox_image_analysis" | "sandbox_preset_fixture";
   raw_response?: Record<string, any>;
 }
 

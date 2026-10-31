@@ -403,3 +403,101 @@ def test_api_diagnostics_live_connectivity_unreachable(client):
         assert "timed out" in data["connectivity"]["message"] or "Network error" in data["connectivity"]["message"]
 
 
+# -----------------------------------------------------------------------------
+# 6. Real Image-Based Colorimetry & Non-Identical Analysis Tests
+# -----------------------------------------------------------------------------
+
+def test_api_analyze_skin_different_uploaded_images_produce_different_results(client):
+    """
+    Verify that uploading distinct face images in sandbox mode derives genuine
+    dermatological measurements from the image pixels rather than returning
+    the same static fixture.
+    """
+    from PIL import Image
+
+    def make_test_portrait_bytes(face_rgb):
+        im = Image.new("RGB", (200, 260), color=(50, 60, 80)) # background
+        for y in range(40, 210):
+            for x in range(40, 160):
+                im.putpixel((x, y), face_rgb)
+        buf = io.BytesIO()
+        im.save(buf, format="JPEG")
+        return buf.getvalue()
+
+    # Image A: Fair Rosy portrait
+    fair_bytes = make_test_portrait_bytes((250, 225, 215))
+    res_a = client.post(
+        "/api/v1/analyze-skin",
+        files={"file": ("my_uploaded_selfie_1.jpg", io.BytesIO(fair_bytes), "image/jpeg")},
+        data={"force_sandbox": "true"},
+    )
+    assert res_a.status_code == 200
+    data_a = res_a.json()
+
+    # Image B: Deep Espresso portrait
+    deep_bytes = make_test_portrait_bytes((85, 50, 35))
+    res_b = client.post(
+        "/api/v1/analyze-skin",
+        files={"file": ("my_uploaded_selfie_2.jpg", io.BytesIO(deep_bytes), "image/jpeg")},
+        data={"force_sandbox": "true"},
+    )
+    assert res_b.status_code == 200
+    data_b = res_b.json()
+
+    # 1. Colors and coordinates MUST be completely different and accurate to each image
+    assert data_a["hex_color"] != data_b["hex_color"]
+    assert data_a["skin_tone_level"] == "Fair"
+    assert data_b["skin_tone_level"] == "Deep"
+    assert data_a["lab_l"] > 75.0
+    assert data_b["lab_l"] < 40.0
+    assert data_a["ita_angle"] > 50.0
+    assert data_b["ita_angle"] < 0.0
+
+    # 2. Must be labeled transparently as simulated local image analysis
+    assert data_a["analysis_source"] == "sandbox_image_analysis"
+    assert data_b["analysis_source"] == "sandbox_image_analysis"
+    assert data_a["is_sandbox_mode"] is True
+    assert data_b["is_sandbox_mode"] is True
+    assert "simulated_local_colorimetry" in data_a["raw_response"]["analysis_type"]
+
+
+def test_api_analyze_skin_rejects_non_face_image(client):
+    """
+    Verify that an uploaded image without skin pixels (e.g. solid blue screen)
+    is rejected with a clear 400 Bad Request error.
+    """
+    from PIL import Image
+
+    # Blue square with 0 skin pixels
+    im = Image.new("RGB", (100, 100), color=(0, 0, 255))
+    buf = io.BytesIO()
+    im.save(buf, format="JPEG")
+
+    res = client.post(
+        "/api/v1/analyze-skin",
+        files={"file": ("blue_box.jpg", io.BytesIO(buf.getvalue()), "image/jpeg")},
+        data={"force_sandbox": "true"},
+    )
+    assert res.status_code == 400
+    assert "No human face or skin tone detected" in res.json()["detail"]
+
+
+def test_api_analyze_skin_preset_fixtures_labeled(client):
+    """
+    Verify that preset demo portraits retain their calibrated benchmark status
+    and are labeled as sandbox_preset_fixture.
+    """
+    fair_image = io.BytesIO(b"fake_fair_cool_portrait")
+    res = client.post(
+        "/api/v1/analyze-skin",
+        files={"file": ("fair-cool.jpg", fair_image, "image/jpeg")},
+        data={"force_sandbox": "true"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["skin_tone_level"] == "Fair"
+    assert data["undertone"] == "Cool"
+    assert data["analysis_source"] == "sandbox_preset_fixture"
+
+
+

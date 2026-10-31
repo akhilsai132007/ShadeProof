@@ -48,7 +48,11 @@ export const AnalysisResultsStep: React.FC<AnalysisResultsStepProps> = ({
           Your Skin Tone Profile
         </h1>
         <p className="text-sm text-[#59524B] max-w-xl mx-auto font-light">
-          Extracted directly from YouCam’s deep-learning color calibration engine.
+          {analysis.is_sandbox_mode
+            ? analysis.analysis_source === "sandbox_preset_fixture"
+              ? "Calibrated benchmark fixture for demo portrait evaluation."
+              : "Colorimetric skin sampling calculated locally from your uploaded photo."
+            : "Extracted directly from YouCam’s deep-learning color calibration engine."}
         </p>
       </div>
 
@@ -57,13 +61,19 @@ export const AnalysisResultsStep: React.FC<AnalysisResultsStepProps> = ({
         <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Layers className="w-4 h-4 text-amber-700 shrink-0" />
-            <span>
-              <strong>Sandbox Evaluation Mode:</strong> Running on verified YouCam response fixtures
-              (API key unconfigured in .env).
-            </span>
+            <div>
+              <span className="font-bold">
+                {analysis.analysis_source === "sandbox_preset_fixture"
+                  ? "Sandbox Preset Fixture:"
+                  : "Sandbox Simulated Local Analysis:"}
+              </span>{" "}
+              {analysis.analysis_source === "sandbox_preset_fixture"
+                ? "Running on verified YouCam benchmark portrait fixture (API key unconfigured in backend/.env)."
+                : "Simulated colorimetric analysis extracted directly from your uploaded selfie pixels."}
+            </div>
           </div>
           <span className="font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded text-[10px]">
-            Demo Active
+            {analysis.analysis_source === "sandbox_preset_fixture" ? "Preset Demo" : "Simulated Local"}
           </span>
         </div>
       ) : (
@@ -154,9 +164,19 @@ export const AnalysisResultsStep: React.FC<AnalysisResultsStepProps> = ({
             <div className="flex items-center justify-between text-xs text-[#8C827A] px-1">
               <div className="flex items-center gap-1.5">
                 <Shield className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Face Detection: Verified</span>
+                <span>
+                  {analysis.is_sandbox_mode
+                    ? analysis.analysis_source === "sandbox_preset_fixture"
+                      ? "Fixture: Preset Benchmark"
+                      : "Pixel Sampling: Local Extracted"
+                    : "Face Detection: Verified"}
+                </span>
               </div>
-              <span>Confidence: {(analysis.confidence * 100).toFixed(0)}%</span>
+              <span>
+                {analysis.is_sandbox_mode
+                  ? "Mode: Simulated"
+                  : `Confidence: ${(analysis.confidence * 100).toFixed(0)}%`}
+              </span>
             </div>
           </div>
         </div>
